@@ -45,6 +45,8 @@ jobs:
       run: |
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           echo "TYPE=${{ github.event.inputs.schedule_type }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event.schedule }}" == "0 9 * * *" ]; then
+          echo "TYPE=daily" >> $GITHUB_OUTPUT
         elif [ "${{ github.event.schedule }}" == "0 9 1 * *" ]; then
           echo "TYPE=monthly" >> $GITHUB_OUTPUT
         elif [ "${{ github.event.schedule }}" == "0 9 31 3,6,9,12 *" ]; then

@@ -18,6 +18,7 @@ on:
         default: 'reminder'
         type: choice
         options:
+        - daily
         - monthly
         - quarterly
         - reminder

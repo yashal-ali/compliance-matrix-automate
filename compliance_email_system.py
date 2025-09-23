@@ -168,7 +168,7 @@ class ComplianceEmailSystem:
             
             <div class="footer">
                 <p><strong>Action Required:</strong> Please complete these tasks by their respective deadlines.</p>
-                <p><strong>Note:</strong> This is an automated message. Please do not reply to this email.</p>
+                
             </div>
         </body>
         </html>

@@ -1,9 +1,94 @@
+# name: Compliance Email Automation
+
+# on:
+#   schedule:
+#     # Daily reminders - every day at 9:00 AM UTC
+#     - cron: '0 18 * * *'
+#     # Monthly tasks - 1st of every month at 9:00 AM UTC
+#     - cron: '0 9 1 * *'
+#     # Quarterly tasks - last day of quarter at 9:00 AM UTC
+#     - cron: '0 9 31 3,6,9,12 *'
+#     # Weekly reminders - every Monday at 9:00 AM UTC
+#     - cron: '0 9 * * 1'
+#   workflow_dispatch:
+#     inputs:
+#       schedule_type:
+#         description: 'Schedule type to run'
+#         required: true
+#         default: 'reminder'
+#         type: choice
+#         options:
+#         - daily
+#         - monthly
+#         - quarterly
+#         - reminder
+
+# jobs:
+#   send-compliance-emails:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#     - name: Checkout repository
+#       uses: actions/checkout@v4
+      
+#     - name: Set up Python
+#       uses: actions/setup-python@v4
+#       with:
+#         python-version: '3.9'
+        
+#     - name: Install dependencies
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip install -r requirements.txt
+        
+#     - name: Determine schedule type
+#       id: schedule_type
+#       run: |
+#         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+#           echo "TYPE=${{ github.event.inputs.schedule_type }}" >> $GITHUB_OUTPUT
+#         elif [ "${{ github.event.schedule }}" == "0 9 * * *" ]; then
+#           echo "TYPE=daily" >> $GITHUB_OUTPUT
+#         elif [ "${{ github.event.schedule }}" == "0 9 1 * *" ]; then
+#           echo "TYPE=monthly" >> $GITHUB_OUTPUT
+#         elif [ "${{ github.event.schedule }}" == "0 9 31 3,6,9,12 *" ]; then
+#           echo "TYPE=quarterly" >> $GITHUB_OUTPUT
+#         else
+#           echo "TYPE=reminder" >> $GITHUB_OUTPUT
+#         fi
+        
+#     - name: Download Compliance Matrix
+#       run: |
+#         # Download your Excel file from a secure location
+#         # Example: Download from GitHub repository (store your file in repo)
+#         # Or use curl to download from secure URL
+#         curl -L -o compliance_matrix.xlsx "${{ secrets.EXCEL_FILE_URL }}"
+        
+#     - name: Send Compliance Emails
+#       env:
+#         SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+#         SMTP_PORT: ${{ secrets.SMTP_PORT }}
+#         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+#         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+#         EXCEL_FILE_PATH: compliance_matrix.xlsx
+#       run: |
+#         python compliance_email_system.py "${{ steps.schedule_type.outputs.TYPE }}"
+        
+#     - name: Upload logs on failure
+#       if: failure()
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: error-logs
+#         path: |
+#           compliance_matrix.xlsx
+#         retention-days: 1
+
+
 name: Compliance Email Automation
 
 on:
   schedule:
     # Daily reminders - every day at 9:00 AM UTC
-    - cron: '0 18 * * *'
+    - cron: '0 19 * * *'
     # Monthly tasks - 1st of every month at 9:00 AM UTC
     - cron: '0 9 1 * *'
     # Quarterly tasks - last day of quarter at 9:00 AM UTC
@@ -18,66 +103,63 @@ on:
         default: 'reminder'
         type: choice
         options:
-        - daily
-        - monthly
-        - quarterly
-        - reminder
+          - daily
+          - monthly
+          - quarterly
+          - reminder
 
 jobs:
   send-compliance-emails:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-    - name: Determine schedule type
-      id: schedule_type
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "TYPE=${{ github.event.inputs.schedule_type }}" >> $GITHUB_OUTPUT
-        elif [ "${{ github.event.schedule }}" == "0 9 * * *" ]; then
-          echo "TYPE=daily" >> $GITHUB_OUTPUT
-        elif [ "${{ github.event.schedule }}" == "0 9 1 * *" ]; then
-          echo "TYPE=monthly" >> $GITHUB_OUTPUT
-        elif [ "${{ github.event.schedule }}" == "0 9 31 3,6,9,12 *" ]; then
-          echo "TYPE=quarterly" >> $GITHUB_OUTPUT
-        else
-          echo "TYPE=reminder" >> $GITHUB_OUTPUT
-        fi
-        
-    - name: Download Compliance Matrix
-      run: |
-        # Download your Excel file from a secure location
-        # Example: Download from GitHub repository (store your file in repo)
-        # Or use curl to download from secure URL
-        curl -L -o compliance_matrix.xlsx "${{ secrets.EXCEL_FILE_URL }}"
-        
-    - name: Send Compliance Emails
-      env:
-        SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-        SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        EXCEL_FILE_PATH: compliance_matrix.xlsx
-      run: |
-        python compliance_email_system.py "${{ steps.schedule_type.outputs.TYPE }}"
-        
-    - name: Upload logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v3
-      with:
-        name: error-logs
-        path: |
-          compliance_matrix.xlsx
-        retention-days: 1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Determine schedule type
+        id: schedule_type
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "TYPE=${{ github.event.inputs.schedule_type }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 9 * * *" ]; then
+            echo "TYPE=daily" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 9 1 * *" ]; then
+            echo "TYPE=monthly" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 9 31 3,6,9,12 *" ]; then
+            echo "TYPE=quarterly" >> $GITHUB_OUTPUT
+          else
+            echo "TYPE=reminder" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download Compliance Matrix
+        run: |
+          curl -L -o compliance_matrix.xlsx "${{ secrets.EXCEL_FILE_URL }}"
+
+      - name: Send Compliance Emails
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EXCEL_FILE_PATH: compliance_matrix.xlsx
+        run: |
+          python compliance_email_system.py "${{ steps.schedule_type.outputs.TYPE }}"
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs
+          path: |
+            compliance_matrix.xlsx
+          retention-days: 1

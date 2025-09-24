@@ -396,7 +396,7 @@ class ComplianceEmailSystem:
             
         elif schedule_type == "reminder":
             # Weekly reminders - send every Monday for pending tasks
-            if today.weekday() != 0:  # Monday is 0
+            if today.weekday() != 2:  # Monday is 0
                 logger.info("Not Monday - skipping weekly reminders")
                 return pd.DataFrame()
             

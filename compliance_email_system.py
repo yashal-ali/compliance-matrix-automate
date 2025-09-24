@@ -487,7 +487,12 @@ class ComplianceEmailSystem:
     def send_email(self, to_email: str, subject: str, html_content: str) -> bool:
         """Send email via SMTP"""
         try:
-            # Validate SMTP configuration
+            
+            logger.info(f"SMTP Credentials Check:")
+            logger.info(f"  Server: '{self.smtp_server}'")
+            logger.info(f"  Port: {self.smtp_port}")
+            logger.info(f"  Username: '{self.smtp_username}'")
+            logger.info(f"  Password set: {bool(self.smtp_password)}")
             if not all([self.smtp_username, self.smtp_password]):
                 logger.error("SMTP credentials are incomplete")
                 return False

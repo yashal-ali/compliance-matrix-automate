@@ -88,7 +88,7 @@ name: Compliance Email Automation
 on:
   schedule:
     # Daily reminders - every day at 9:00 AM UTC
-    - cron: '0 19 * * *'
+    - cron: '0 5 * * *'
     # Monthly tasks - 1st of every month at 9:00 AM UTC
     - cron: '0 9 1 * *'
     # Quarterly tasks - last day of quarter at 9:00 AM UTC
@@ -140,11 +140,13 @@ jobs:
           else
             echo "TYPE=reminder" >> $GITHUB_OUTPUT
           fi
-
-      - name: Download Compliance Matrix
+      - name: Use Compliance Matrix from repo
         run: |
-          curl -L -o compliance_matrix.xlsx "${{ secrets.EXCEL_FILE_URL }}"
-
+            # Make sure the file exists
+            if [ ! -f "./compliance_matrix.xlsx" ]; then
+              echo "compliance_matrix.xlsx not found in repository!"
+              exit 1
+            fi
       - name: Send Compliance Emails
         env:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}

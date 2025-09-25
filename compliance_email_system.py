@@ -1,3 +1,285 @@
+# # #!/usr/bin/env python3
+# # """
+# # Compliance Email Automation System
+# # Automates task notifications and reminders from Excel compliance matrix
+# # """
+
+# # import pandas as pd
+# # import smtplib
+# # import os
+# # import logging
+# # from email.mime.text import MIMEText
+# # from email.mime.multipart import MIMEMultipart
+# # from datetime import datetime, timedelta
+# # import sys
+# # from typing import List, Dict, Any
+# # from dotenv import load_dotenv
+
+# # # Configure logging
+# # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# # logger = logging.getLogger(__name__)
+
+# # load_dotenv()
+
+# # class ComplianceEmailSystem:
+# #     def __init__(self, excel_file_path: str):
+# #         self.excel_file_path = excel_file_path
+# #         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+# #         self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+# #         self.smtp_username = os.getenv('SMTP_USERNAME')
+# #         self.smtp_password = os.getenv('SMTP_PASSWORD')
+# #         self.data = None
+        
+# #     def load_excel_data(self) -> bool:
+# #         """Load and validate Excel data"""
+# #         try:
+# #             self.data = pd.read_excel(self.excel_file_path)
+            
+# #             # Validate required columns
+# #             required_columns = ['Task', 'Task Description', 'Email', 'Attachment Link', 
+# #                               'Status', 'Start Date', 'End Date', 'Frequency']
+# #             missing_columns = [col for col in required_columns if col not in self.data.columns]
+            
+# #             if missing_columns:
+# #                 logger.error(f"Missing required columns: {missing_columns}")
+# #                 return False
+                
+# #             # Convert date columns
+# #             self.data['Start Date'] = pd.to_datetime(self.data['Start Date']).dt.date
+# #             self.data['End Date'] = pd.to_datetime(self.data['End Date']).dt.date
+            
+# #             logger.info(f"Successfully loaded {len(self.data)} tasks")
+# #             return True
+            
+# #         except Exception as e:
+# #             logger.error(f"Error loading Excel file: {e}")
+# #             return False
+    
+# #     def filter_tasks_by_schedule(self, schedule_type: str) -> pd.DataFrame:
+# #         """Filter tasks based on schedule type (monthly, quarterly, reminder)"""
+# #         today = datetime.now().date()
+        
+# #         if schedule_type == "monthly":
+# #             # Monthly tasks - send on 1st of month
+# #             if today.day != 1:
+# #                 logger.info("Not the 1st of month - skipping monthly tasks")
+# #                 return pd.DataFrame()
+            
+# #             monthly_tasks = self.data[
+# #                 (self.data['Frequency'].str.lower() == 'monthly') &
+# #                 (self.data['Status'].str.lower() == 'pending')
+# #             ]
+# #             logger.info(f"Found {len(monthly_tasks)} monthly tasks")
+# #             return monthly_tasks
+            
+# #         elif schedule_type == "quarterly":
+# #             # Quarterly tasks - send on last day of quarter
+# #             quarter_ends = [datetime(today.year, 3, 31).date(),
+# #                           datetime(today.year, 6, 30).date(),
+# #                           datetime(today.year, 9, 30).date(),
+# #                           datetime(today.year, 12, 31).date()]
+            
+# #             if today not in quarter_ends:
+# #                 logger.info("Not a quarter end day - skipping quarterly tasks")
+# #                 return pd.DataFrame()
+            
+# #             quarterly_tasks = self.data[
+# #                 (self.data['Frequency'].str.lower() == 'quarterly') &
+# #                 (self.data['Status'].str.lower() == 'pending')
+# #             ]
+# #             logger.info(f"Found {len(quarterly_tasks)} quarterly tasks")
+# #             return quarterly_tasks
+            
+# #         elif schedule_type == "reminder":
+# #             # Weekly reminders - send every Monday for pending tasks
+# #             if today.weekday() != 1:  # Monday is 0
+# #                 logger.info("Not Monday - skipping reminders")
+# #                 return pd.DataFrame()
+            
+# #             reminder_tasks = self.data[
+# #                 (self.data['Status'].str.lower() == 'pending') &
+# #                 (self.data['End Date'] >= today)  # Only remind for tasks not yet overdue
+# #             ]
+# #             logger.info(f"Found {len(reminder_tasks)} tasks for reminders")
+# #             return reminder_tasks
+            
+# #         else:
+# #             logger.error(f"Unknown schedule type: {schedule_type}")
+# #             return pd.DataFrame()
+    
+# #     def create_email_content(self, user_tasks: pd.DataFrame, is_reminder: bool = False) -> str:
+# #         """Create HTML email content for user tasks"""
+# #         user_email = user_tasks['Email'].iloc[0]
+# #         task_count = len(user_tasks)
+        
+# #         email_type = "Reminder" if is_reminder else "Notification"
+        
+# #         html_content = f"""
+# #         <!DOCTYPE html>
+# #         <html>
+# #         <head>
+# #             <style>
+# #                 body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+# #                 .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; }}
+# #                 .task-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+# #                 .task-table th, .task-table td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+# #                 .task-table th {{ background-color: #4CAF50; color: white; }}
+# #                 .task-table tr:nth-child(even) {{ background-color: #f2f2f2; }}
+# #                 .urgent {{ color: #ff6b6b; font-weight: bold; }}
+# #                 .footer {{ margin-top: 20px; padding: 10px; background-color: #f8f9fa; }}
+# #             </style>
+# #         </head>
+# #         <body>
+# #             <div class="header">
+# #                 <h2>Compliance Task {email_type}</h2>
+# #                 <p>You have {task_count} pending compliance task(s)</p>
+# #             </div>
+            
+# #             <table class="task-table">
+# #                 <thead>
+# #                     <tr>
+# #                         <th>Task</th>
+# #                         <th>Description</th>
+# #                         <th>Deadline</th>
+# #                         <th>Frequency</th>
+# #                         <th>Attachment Link</th>
+# #                     </tr>
+# #                 </thead>
+# #                 <tbody>
+# #         """
+        
+# #         for _, task in user_tasks.iterrows():
+# #             days_remaining = (task['End Date'] - datetime.now().date()).days
+# #             urgent_class = "urgent" if days_remaining <= 3 else ""
+            
+# #             html_content += f"""
+# #                     <tr>
+# #                         <td><strong>{task['Task']}</strong></td>
+# #                         <td>{task['Task Description']}</td>
+# #                         <td class="{urgent_class}">{task['End Date']} ({days_remaining} days remaining)</td>
+# #                         <td>{task['Frequency']}</td>
+# #                         <td><a href="{task['Attachment Link']}">Upload Files</a></td>
+# #                     </tr>
+# #             """
+        
+# #         html_content += f"""
+# #                 </tbody>
+# #             </table>
+            
+# #             <div class="footer">
+# #                 <p><strong>Action Required:</strong> Please complete these tasks by their respective deadlines.</p>
+                
+# #             </div>
+# #         </body>
+# #         </html>
+# #         """
+        
+# #         return html_content
+    
+# #     def send_email(self, to_email: str, subject: str, html_content: str) -> bool:
+# #         """Send email via SMTP"""
+# #         try:
+# #             # Create message
+# #             msg = MIMEMultipart('alternative')
+# #             msg['Subject'] = subject
+# #             msg['From'] = self.smtp_username
+# #             msg['To'] = to_email
+            
+# #             # Attach HTML content
+# #             msg.attach(MIMEText(html_content, 'html'))
+            
+# #             # Send email
+# #             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+# #                 server.starttls()
+# #                 server.login(self.smtp_username, self.smtp_password)
+# #                 server.send_message(msg)
+            
+# #             logger.info(f"Email sent successfully to {to_email}")
+# #             return True
+            
+# #         except Exception as e:
+# #             logger.error(f"Error sending email to {to_email}: {e}")
+# #             return False
+    
+# #     def process_tasks(self, schedule_type: str) -> Dict[str, Any]:
+# #         """Main processing function"""
+# #         if not self.load_excel_data():
+# #             return {"success": False, "error": "Failed to load Excel data"}
+        
+# #         # Filter tasks based on schedule
+# #         filtered_tasks = self.filter_tasks_by_schedule(schedule_type)
+        
+# #         if filtered_tasks.empty:
+# #             logger.info(f"No tasks to process for {schedule_type}")
+# #             return {"success": True, "emails_sent": 0, "message": "No tasks to process"}
+        
+# #         # Group tasks by email
+# #         grouped_tasks = filtered_tasks.groupby('Email')
+# #         emails_sent = 0
+# #         emails_failed = 0
+        
+# #         is_reminder = (schedule_type == "reminder")
+# #         email_subject = f"Compliance Task {'Reminder' if is_reminder else 'Notification'}"
+        
+# #         for email, tasks in grouped_tasks:
+# #             # Create email content
+# #             html_content = self.create_email_content(tasks, is_reminder)
+            
+# #             # Send email
+# #             if self.send_email(email, email_subject, html_content):
+# #                 emails_sent += 1
+# #             else:
+# #                 emails_failed += 1
+        
+# #         result = {
+# #             "success": True,
+# #             "emails_sent": emails_sent,
+# #             "emails_failed": emails_failed,
+# #             "total_tasks": len(filtered_tasks),
+# #             "unique_users": len(grouped_tasks)
+# #         }
+        
+# #         logger.info(f"Processing complete: {emails_sent} emails sent, {emails_failed} failed")
+# #         return result
+
+# # def main():
+# #     if len(sys.argv) != 2:
+# #         print("Usage: python compliance_email_system.py <schedule_type>")
+# #         print("Schedule types: monthly, quarterly, reminder")
+# #         sys.exit(1)
+    
+# #     schedule_type = sys.argv[1].lower()
+# #     valid_schedules = ['monthly', 'quarterly', 'reminder']
+    
+# #     if schedule_type not in valid_schedules:
+# #         print(f"Error: Schedule type must be one of {valid_schedules}")
+# #         sys.exit(1)
+    
+# #     # Excel file path - can be configured via environment variable
+# #     excel_file = os.getenv('EXCEL_FILE_PATH', 'compliance_matrix.xlsx')
+    
+# #     # Check if Excel file exists
+# #     if not os.path.exists(excel_file):
+# #         logger.error(f"Excel file not found: {excel_file}")
+# #         sys.exit(1)
+    
+# #     # Initialize and run the system
+# #     system = ComplianceEmailSystem(excel_file)
+# #     result = system.process_tasks(schedule_type)
+    
+# #     if result['success']:
+# #         print(f"✅ Successfully processed {schedule_type} tasks")
+# #         print(f"📧 Emails sent: {result['emails_sent']}")
+# #         print(f"❌ Emails failed: {result['emails_failed']}")
+# #         print(f"📊 Total tasks: {result['total_tasks']}")
+# #         print(f"👥 Unique users: {result['unique_users']}")
+# #     else:
+# #         print(f"❌ Processing failed: {result.get('error', 'Unknown error')}")
+# #         sys.exit(1)
+
+# # if __name__ == "__main__":
+# #     main()
+
 # #!/usr/bin/env python3
 # """
 # Compliance Email Automation System
@@ -25,10 +307,21 @@
 #     def __init__(self, excel_file_path: str):
 #         self.excel_file_path = excel_file_path
 #         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-#         self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        
+#         # FIXED: Better port handling with default fallback
+#         smtp_port_str = os.getenv('SMTP_PORT', '').strip()
+#         try:
+#             self.smtp_port = int(smtp_port_str) if smtp_port_str else 587
+#         except ValueError:
+#             logger.warning(f"Invalid SMTP_PORT '{smtp_port_str}', using default 587")
+#             self.smtp_port = 587
+            
 #         self.smtp_username = os.getenv('SMTP_USERNAME')
 #         self.smtp_password = os.getenv('SMTP_PASSWORD')
 #         self.data = None
+        
+#         # Debug logging
+#         logger.info(f"SMTP Configuration: Server={self.smtp_server}, Port={self.smtp_port}, Username={self.smtp_username}")
         
 #     def load_excel_data(self) -> bool:
 #         """Load and validate Excel data"""
@@ -56,7 +349,7 @@
 #             return False
     
 #     def filter_tasks_by_schedule(self, schedule_type: str) -> pd.DataFrame:
-#         """Filter tasks based on schedule type (monthly, quarterly, reminder)"""
+#         """Filter tasks based on schedule type (monthly, quarterly, reminder, daily)"""
 #         today = datetime.now().date()
         
 #         if schedule_type == "monthly":
@@ -66,7 +359,7 @@
 #                 return pd.DataFrame()
             
 #             monthly_tasks = self.data[
-#                 (self.data['Frequency'].str.lower() == 'monthly') &
+#                 (self.data['Frequency'].str.lower().str.contains('monthly', na=False)) &
 #                 (self.data['Status'].str.lower() == 'pending')
 #             ]
 #             logger.info(f"Found {len(monthly_tasks)} monthly tasks")
@@ -74,31 +367,42 @@
             
 #         elif schedule_type == "quarterly":
 #             # Quarterly tasks - send on last day of quarter
-#             quarter_ends = [datetime(today.year, 3, 31).date(),
-#                           datetime(today.year, 6, 30).date(),
-#                           datetime(today.year, 9, 30).date(),
-#                           datetime(today.year, 12, 31).date()]
+#             quarter_ends = [
+#                 datetime(today.year, 3, 31).date(),
+#                 datetime(today.year, 6, 30).date(),
+#                 datetime(today.year, 9, 30).date(),
+#                 datetime(today.year, 12, 31).date()
+#             ]
             
 #             if today not in quarter_ends:
 #                 logger.info("Not a quarter end day - skipping quarterly tasks")
 #                 return pd.DataFrame()
             
 #             quarterly_tasks = self.data[
-#                 (self.data['Frequency'].str.lower() == 'quarterly') &
+#                 (self.data['Frequency'].str.lower().str.contains('quarterly', na=False)) &
 #                 (self.data['Status'].str.lower() == 'pending')
 #             ]
 #             logger.info(f"Found {len(quarterly_tasks)} quarterly tasks")
 #             return quarterly_tasks
             
+#         elif schedule_type == "daily":
+#             # Daily tasks - send every day
+#             daily_tasks = self.data[
+#                 (self.data['Status'].str.lower() == 'pending') &
+#                 (self.data['End Date'] >= today)
+#             ]
+#             logger.info(f"Found {len(daily_tasks)} tasks for daily reminders")
+#             return daily_tasks
+            
 #         elif schedule_type == "reminder":
 #             # Weekly reminders - send every Monday for pending tasks
-#             if today.weekday() != 1:  # Monday is 0
-#                 logger.info("Not Monday - skipping reminders")
+#             if today.weekday() != 2:  # Monday is 0
+#                 logger.info("Not Monday - skipping weekly reminders")
 #                 return pd.DataFrame()
             
 #             reminder_tasks = self.data[
 #                 (self.data['Status'].str.lower() == 'pending') &
-#                 (self.data['End Date'] >= today)  # Only remind for tasks not yet overdue
+#                 (self.data['End Date'] >= today)
 #             ]
 #             logger.info(f"Found {len(reminder_tasks)} tasks for reminders")
 #             return reminder_tasks
@@ -107,26 +411,30 @@
 #             logger.error(f"Unknown schedule type: {schedule_type}")
 #             return pd.DataFrame()
     
-#     def create_email_content(self, user_tasks: pd.DataFrame, is_reminder: bool = False) -> str:
+#     def create_email_content(self, user_tasks: pd.DataFrame, schedule_type: str) -> str:
 #         """Create HTML email content for user tasks"""
 #         user_email = user_tasks['Email'].iloc[0]
 #         task_count = len(user_tasks)
         
-#         email_type = "Reminder" if is_reminder else "Notification"
+#         email_type = schedule_type.capitalize()
+#         if schedule_type == "reminder":
+#             email_type = "Weekly Reminder"
+#         elif schedule_type == "daily":
+#             email_type = "Daily Reminder"
         
 #         html_content = f"""
 #         <!DOCTYPE html>
 #         <html>
 #         <head>
 #             <style>
-#                 body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
-#                 .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; }}
+#                 body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }}
+#                 .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px; }}
 #                 .task-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
 #                 .task-table th, .task-table td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
 #                 .task-table th {{ background-color: #4CAF50; color: white; }}
 #                 .task-table tr:nth-child(even) {{ background-color: #f2f2f2; }}
 #                 .urgent {{ color: #ff6b6b; font-weight: bold; }}
-#                 .footer {{ margin-top: 20px; padding: 10px; background-color: #f8f9fa; }}
+#                 .footer {{ margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }}
 #             </style>
 #         </head>
 #         <body>
@@ -138,8 +446,9 @@
 #             <table class="task-table">
 #                 <thead>
 #                     <tr>
+#                         <th>Domain</th>
 #                         <th>Task</th>
-#                         <th>Description</th>
+#                         <th>Task Description</th>
 #                         <th>Deadline</th>
 #                         <th>Frequency</th>
 #                         <th>Attachment Link</th>
@@ -154,11 +463,12 @@
             
 #             html_content += f"""
 #                     <tr>
+#                         <td><strong>{task['Domain']}</strong></td>
 #                         <td><strong>{task['Task']}</strong></td>
 #                         <td>{task['Task Description']}</td>
-#                         <td class="{urgent_class}">{task['End Date']} ({days_remaining} days remaining)</td>
+#                         <td class="{urgent_class}">{task['End Date'].strftime('%Y-%m-%d')} ({days_remaining} days remaining)</td>
 #                         <td>{task['Frequency']}</td>
-#                         <td><a href="{task['Attachment Link']}">Upload Files</a></td>
+#                         <td><a href="{task['Attachment Link']}" target="_blank">Upload Files</a></td>
 #                     </tr>
 #             """
         
@@ -168,7 +478,7 @@
             
 #             <div class="footer">
 #                 <p><strong>Action Required:</strong> Please complete these tasks by their respective deadlines.</p>
-                
+#                 <p><strong>Note:</strong> This is an automated message. Please do not reply to this email.</p>
 #             </div>
 #         </body>
 #         </html>
@@ -179,6 +489,12 @@
 #     def send_email(self, to_email: str, subject: str, html_content: str) -> bool:
 #         """Send email via SMTP"""
 #         try:
+            
+            
+#             if not all([self.smtp_username, self.smtp_password]):
+#                 logger.error("SMTP credentials are incomplete")
+#                 return False
+            
 #             # Create message
 #             msg = MIMEMultipart('alternative')
 #             msg['Subject'] = subject
@@ -188,8 +504,9 @@
 #             # Attach HTML content
 #             msg.attach(MIMEText(html_content, 'html'))
             
-#             # Send email
-#             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+#             # Send email with better error handling
+#             logger.info(f"Attempting to send email to {to_email}")
+#             with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as server:
 #                 server.starttls()
 #                 server.login(self.smtp_username, self.smtp_password)
 #                 server.send_message(msg)
@@ -211,19 +528,22 @@
         
 #         if filtered_tasks.empty:
 #             logger.info(f"No tasks to process for {schedule_type}")
-#             return {"success": True, "emails_sent": 0, "message": "No tasks to process"}
+#             return {"success": True, "emails_sent": 0, "total_tasks": 0, "unique_users": 0}
         
 #         # Group tasks by email
 #         grouped_tasks = filtered_tasks.groupby('Email')
 #         emails_sent = 0
 #         emails_failed = 0
         
-#         is_reminder = (schedule_type == "reminder")
-#         email_subject = f"Compliance Task {'Reminder' if is_reminder else 'Notification'}"
+#         email_subject = f"Compliance Task {schedule_type.capitalize()}"
+#         if schedule_type == "reminder":
+#             email_subject = "Weekly Compliance Task Reminder"
+#         elif schedule_type == "daily":
+#             email_subject = "Daily Compliance Task Reminder"
         
 #         for email, tasks in grouped_tasks:
 #             # Create email content
-#             html_content = self.create_email_content(tasks, is_reminder)
+#             html_content = self.create_email_content(tasks, schedule_type)
             
 #             # Send email
 #             if self.send_email(email, email_subject, html_content):
@@ -245,11 +565,11 @@
 # def main():
 #     if len(sys.argv) != 2:
 #         print("Usage: python compliance_email_system.py <schedule_type>")
-#         print("Schedule types: monthly, quarterly, reminder")
+#         print("Schedule types: daily, monthly, quarterly, reminder")
 #         sys.exit(1)
     
 #     schedule_type = sys.argv[1].lower()
-#     valid_schedules = ['monthly', 'quarterly', 'reminder']
+#     valid_schedules = ['daily', 'monthly', 'quarterly', 'reminder']
     
 #     if schedule_type not in valid_schedules:
 #         print(f"Error: Schedule type must be one of {valid_schedules}")
@@ -279,12 +599,6 @@
 
 # if __name__ == "__main__":
 #     main()
-
-#!/usr/bin/env python3
-"""
-Compliance Email Automation System
-Automates task notifications and reminders from Excel compliance matrix
-"""
 
 import pandas as pd
 import smtplib
@@ -328,8 +642,8 @@ class ComplianceEmailSystem:
         try:
             self.data = pd.read_excel(self.excel_file_path)
             
-            # Validate required columns
-            required_columns = ['Task', 'Task Description', 'Email', 'Attachment Link', 
+            # Validate required columns - ADDED DOMAIN COLUMN
+            required_columns = ['Domain', 'Task', 'Task Description', 'Email', 'Attachment Link', 
                               'Status', 'Start Date', 'End Date', 'Frequency']
             missing_columns = [col for col in required_columns if col not in self.data.columns]
             
@@ -341,7 +655,12 @@ class ComplianceEmailSystem:
             self.data['Start Date'] = pd.to_datetime(self.data['Start Date']).dt.date
             self.data['End Date'] = pd.to_datetime(self.data['End Date']).dt.date
             
-            logger.info(f"Successfully loaded {len(self.data)} tasks")
+            # Fill missing domains with a default value if any
+            if self.data['Domain'].isnull().any():
+                logger.warning("Some tasks have missing Domain values, filling with 'General'")
+                self.data['Domain'] = self.data['Domain'].fillna('General')
+            
+            logger.info(f"Successfully loaded {len(self.data)} tasks across {self.data['Domain'].nunique()} domains")
             return True
             
         except Exception as e:
@@ -362,27 +681,26 @@ class ComplianceEmailSystem:
                 (self.data['Frequency'].str.lower().str.contains('monthly', na=False)) &
                 (self.data['Status'].str.lower() == 'pending')
             ]
-            logger.info(f"Found {len(monthly_tasks)} monthly tasks")
+            logger.info(f"Found {len(monthly_tasks)} monthly tasks across {monthly_tasks['Domain'].nunique()} domains")
             return monthly_tasks
             
         elif schedule_type == "quarterly":
-            # Quarterly tasks - send on last day of quarter
-            quarter_ends = [
-                datetime(today.year, 3, 31).date(),
-                datetime(today.year, 6, 30).date(),
-                datetime(today.year, 9, 30).date(),
-                datetime(today.year, 12, 31).date()
-            ]
+            # Quarterly tasks - send on 25th of the last month of each quarter
+            # Last months of quarters: March (3), June (6), September (9), December (12)
+            quarter_months = [3, 6, 9, 12]
+            current_month = today.month
+            current_day = today.day
             
-            if today not in quarter_ends:
-                logger.info("Not a quarter end day - skipping quarterly tasks")
+            # Check if today is 25th of a quarter-end month
+            if current_month not in quarter_months or current_day != 25:
+                logger.info(f"Not 25th of a quarter-end month (current: {today}) - skipping quarterly tasks")
                 return pd.DataFrame()
             
             quarterly_tasks = self.data[
                 (self.data['Frequency'].str.lower().str.contains('quarterly', na=False)) &
                 (self.data['Status'].str.lower() == 'pending')
             ]
-            logger.info(f"Found {len(quarterly_tasks)} quarterly tasks")
+            logger.info(f"Found {len(quarterly_tasks)} quarterly tasks across {quarterly_tasks['Domain'].nunique()} domains")
             return quarterly_tasks
             
         elif schedule_type == "daily":
@@ -391,12 +709,12 @@ class ComplianceEmailSystem:
                 (self.data['Status'].str.lower() == 'pending') &
                 (self.data['End Date'] >= today)
             ]
-            logger.info(f"Found {len(daily_tasks)} tasks for daily reminders")
+            logger.info(f"Found {len(daily_tasks)} tasks for daily reminders across {daily_tasks['Domain'].nunique()} domains")
             return daily_tasks
             
         elif schedule_type == "reminder":
             # Weekly reminders - send every Monday for pending tasks
-            if today.weekday() != 2:  # Monday is 0
+            if today.weekday() != 0:  # Monday is 0
                 logger.info("Not Monday - skipping weekly reminders")
                 return pd.DataFrame()
             
@@ -404,7 +722,7 @@ class ComplianceEmailSystem:
                 (self.data['Status'].str.lower() == 'pending') &
                 (self.data['End Date'] >= today)
             ]
-            logger.info(f"Found {len(reminder_tasks)} tasks for reminders")
+            logger.info(f"Found {len(reminder_tasks)} tasks for reminders across {reminder_tasks['Domain'].nunique()} domains")
             return reminder_tasks
             
         else:
@@ -422,6 +740,9 @@ class ComplianceEmailSystem:
         elif schedule_type == "daily":
             email_type = "Daily Reminder"
         
+        # Group tasks by domain for better organization
+        tasks_by_domain = user_tasks.groupby('Domain')
+        
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -429,54 +750,92 @@ class ComplianceEmailSystem:
             <style>
                 body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }}
                 .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px; }}
-                .task-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                .domain-section {{ margin: 20px 0; padding: 15px; background-color: #e9ecef; border-radius: 5px; }}
+                .domain-title {{ font-size: 1.2em; font-weight: bold; color: #495057; margin-bottom: 10px; }}
+                .task-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
                 .task-table th, .task-table td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
                 .task-table th {{ background-color: #4CAF50; color: white; }}
                 .task-table tr:nth-child(even) {{ background-color: #f2f2f2; }}
                 .urgent {{ color: #ff6b6b; font-weight: bold; }}
                 .footer {{ margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }}
+                .summary {{ background-color: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; }}
+                .quarter-notice {{ background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }}
             </style>
         </head>
         <body>
             <div class="header">
                 <h2>Compliance Task {email_type}</h2>
-                <p>You have {task_count} pending compliance task(s)</p>
+                <p>You have {task_count} pending compliance task(s) across {len(tasks_by_domain)} domain(s)</p>
             </div>
-            
-            <table class="task-table">
-                <thead>
-                    <tr>
-                        <th>Task</th>
-                        <th>Description</th>
-                        <th>Deadline</th>
-                        <th>Frequency</th>
-                        <th>Attachment Link</th>
-                    </tr>
-                </thead>
-                <tbody>
         """
         
-        for _, task in user_tasks.iterrows():
-            days_remaining = (task['End Date'] - datetime.now().date()).days
-            urgent_class = "urgent" if days_remaining <= 3 else ""
-            
-            html_content += f"""
-                    <tr>
-                        <td><strong>{task['Task']}</strong></td>
-                        <td>{task['Task Description']}</td>
-                        <td class="{urgent_class}">{task['End Date'].strftime('%Y-%m-%d')} ({days_remaining} days remaining)</td>
-                        <td>{task['Frequency']}</td>
-                        <td><a href="{task['Attachment Link']}" target="_blank">Upload Files</a></td>
-                    </tr>
+        # Add quarterly notice if applicable
+        if schedule_type == "quarterly":
+            html_content += """
+            <div class="quarter-notice">
+                <h3>📅 Quarterly Compliance Notice</h3>
+                <p><strong>This is your quarterly compliance reminder.</strong> Please ensure all quarterly tasks are completed before the end of the current quarter.</p>
+            </div>
             """
         
         html_content += f"""
-                </tbody>
-            </table>
+            <div class="summary">
+                <h3>📊 Task Summary by Domain:</h3>
+                <ul>
+        """
+        
+        # Add domain summary
+        for domain, domain_tasks in tasks_by_domain:
+            html_content += f'<li><strong>{domain}</strong>: {len(domain_tasks)} task(s)</li>'
+        
+        html_content += """
+                </ul>
+            </div>
+        """
+        
+        # Add tasks organized by domain
+        for domain, domain_tasks in tasks_by_domain:
+            html_content += f"""
+            <div class="domain-section">
+                <div class="domain-title">🏢 Domain: {domain}</div>
+                <table class="task-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Task Description</th>
+                            <th>Deadline</th>
+                            <th>Frequency</th>
+                            <th>Attachment Link</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
             
+            for _, task in domain_tasks.iterrows():
+                days_remaining = (task['End Date'] - datetime.now().date()).days
+                urgent_class = "urgent" if days_remaining <= 3 else ""
+                
+                html_content += f"""
+                        <tr>
+                            <td><strong>{task['Task']}</strong></td>
+                            <td>{task['Task Description']}</td>
+                            <td class="{urgent_class}">{task['End Date'].strftime('%Y-%m-%d')} ({days_remaining} days remaining)</td>
+                            <td>{task['Frequency']}</td>
+                            <td><a href="{task['Attachment Link']}" target="_blank">Upload Files</a></td>
+                        </tr>
+                """
+            
+            html_content += """
+                    </tbody>
+                </table>
+            </div>
+            """
+        
+        html_content += f"""
             <div class="footer">
                 <p><strong>Action Required:</strong> Please complete these tasks by their respective deadlines.</p>
                 <p><strong>Note:</strong> This is an automated message. Please do not reply to this email.</p>
+                <p><strong>Domains Affected:</strong> {", ".join(tasks_by_domain.groups.keys())}</p>
             </div>
         </body>
         </html>
@@ -488,11 +847,7 @@ class ComplianceEmailSystem:
         """Send email via SMTP"""
         try:
             
-            logger.info(f"SMTP Credentials Check:")
-            logger.info(f"  Server: '{self.smtp_server}'")
-            logger.info(f"  Port: {self.smtp_port}")
-            logger.info(f"  Username: '{self.smtp_username}'")
-            logger.info(f"  Password set: {bool(self.smtp_password)}")
+            
             if not all([self.smtp_username, self.smtp_password]):
                 logger.error("SMTP credentials are incomplete")
                 return False
@@ -530,7 +885,7 @@ class ComplianceEmailSystem:
         
         if filtered_tasks.empty:
             logger.info(f"No tasks to process for {schedule_type}")
-            return {"success": True, "emails_sent": 0, "total_tasks": 0, "unique_users": 0}
+            return {"success": True, "emails_sent": 0, "total_tasks": 0, "unique_users": 0, "domains_affected": 0}
         
         # Group tasks by email
         grouped_tasks = filtered_tasks.groupby('Email')
@@ -542,6 +897,8 @@ class ComplianceEmailSystem:
             email_subject = "Weekly Compliance Task Reminder"
         elif schedule_type == "daily":
             email_subject = "Daily Compliance Task Reminder"
+        elif schedule_type == "quarterly":
+            email_subject = "Quarterly Compliance Task Reminder - Action Required"
         
         for email, tasks in grouped_tasks:
             # Create email content
@@ -558,10 +915,11 @@ class ComplianceEmailSystem:
             "emails_sent": emails_sent,
             "emails_failed": emails_failed,
             "total_tasks": len(filtered_tasks),
-            "unique_users": len(grouped_tasks)
+            "unique_users": len(grouped_tasks),
+            "domains_affected": filtered_tasks['Domain'].nunique()
         }
         
-        logger.info(f"Processing complete: {emails_sent} emails sent, {emails_failed} failed")
+        logger.info(f"Processing complete: {emails_sent} emails sent, {emails_failed} failed, {result['domains_affected']} domains affected")
         return result
 
 def main():
@@ -595,6 +953,7 @@ def main():
         print(f"❌ Emails failed: {result['emails_failed']}")
         print(f"📊 Total tasks: {result['total_tasks']}")
         print(f"👥 Unique users: {result['unique_users']}")
+        print(f"🏢 Domains affected: {result['domains_affected']}")
     else:
         print(f"❌ Processing failed: {result.get('error', 'Unknown error')}")
         sys.exit(1)

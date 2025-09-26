@@ -242,7 +242,7 @@ jobs:
             echo "TYPE=${{ github.event.inputs.schedule_type }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" == "0 9 1 * *" ]; then
             echo "TYPE=monthly" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" == "0 9 25 3,6,9,12 *" ]; then
+          elif [ "${{ github.event.schedule }}" == "0 5 26 3,6,9,12 *" ]; then
             # Check if today is actually the 25th of a quarter-end month
             TODAY_MONTH=$(date +%m)
             TODAY_DAY=$(date +%d)

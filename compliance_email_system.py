@@ -685,14 +685,14 @@ class ComplianceEmailSystem:
             return monthly_tasks
             
         elif schedule_type == "quarterly":
-            # Quarterly tasks - send on 25th of the last month of each quarter
+            # Quarterly tasks - send on 26th of the last month of each quarter
             # Last months of quarters: March (3), June (6), September (9), December (12)
             quarter_months = [3, 6, 9, 12]
             current_month = today.month
             current_day = today.day
             
             # Check if today is 25th of a quarter-end month
-            if current_month not in quarter_months or current_day != 25:
+            if current_month not in quarter_months or current_day != 26:
                 logger.info(f"Not 25th of a quarter-end month (current: {today}) - skipping quarterly tasks")
                 return pd.DataFrame()
             
@@ -834,7 +834,6 @@ class ComplianceEmailSystem:
         html_content += f"""
             <div class="footer">
                 <p><strong>Action Required:</strong> Please complete these tasks by their respective deadlines.</p>
-                <p><strong>Note:</strong> This is an automated message. Please do not reply to this email.</p>
                 <p><strong>Domains Affected:</strong> {", ".join(tasks_by_domain.groups.keys())}</p>
             </div>
         </body>
